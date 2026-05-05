@@ -60,22 +60,34 @@ def draw_board(screen, game):
         cx, cy = _cell_to_pixel(r, c)
         pygame.draw.circle(screen, RED_COLOR, (cx, cy), 5)
 
-    # Win overlay
-    if game.winner:
-        font = pygame.font.SysFont(None, 64)
-        msg = "Black wins!" if game.winner == BLACK else "White wins!"
-        text = font.render(msg, True, (180, 0, 0))
-        rect = text.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2))
-        bg_rect = rect.inflate(30, 20)
-        pygame.draw.rect(screen, OVERLAY_COLOR, bg_rect, border_radius=8)
-        pygame.draw.rect(screen, (180, 0, 0), bg_rect, 2, border_radius=8)
-        screen.blit(text, rect)
-
     # Draw "AI thinking..." hint
     if not game.winner and game.current_player == WHITE:
         hint_font = pygame.font.SysFont(None, 28)
         hint = hint_font.render("AI thinking...", True, (80, 40, 0))
         screen.blit(hint, (MARGIN, WINDOW_SIZE - MARGIN + 4))
+
+    # Win overlay
+    if game.winner:
+        font = pygame.font.SysFont(None, 64)
+        msg = "Black wins!" if game.winner == BLACK else "White wins!"
+        text = font.render(msg, True, (180, 0, 0))
+        rect = text.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2 - 30))
+        bg_rect = rect.inflate(30, 20)
+        pygame.draw.rect(screen, OVERLAY_COLOR, bg_rect, border_radius=8)
+        pygame.draw.rect(screen, (180, 0, 0), bg_rect, 2, border_radius=8)
+        screen.blit(text, rect)
+
+        # Retry button
+        btn_font = pygame.font.SysFont(None, 42)
+        btn_text = btn_font.render("Retry", True, WHITE_COLOR)
+        btn_rect = btn_text.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2 + 40))
+        btn_bg = btn_rect.inflate(40, 16)
+        pygame.draw.rect(screen, (180, 0, 0), btn_bg, border_radius=8)
+        pygame.draw.rect(screen, (120, 0, 0), btn_bg, 2, border_radius=8)
+        screen.blit(btn_text, btn_rect)
+        return btn_bg
+
+    return None
 
 
 def pixel_to_cell(x, y):
@@ -99,25 +111,29 @@ def run_game():
 
     ai_thinking = False
 
+    retry_btn_rect = None
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-            if (event.type == pygame.MOUSEBUTTONDOWN
-                    and event.button == 1
-                    and not game.is_terminal()
-                    and not ai_thinking
-                    and game.current_player == BLACK):
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Retry button takes priority when game is over
+                if retry_btn_rect and retry_btn_rect.collidepoint(event.pos):
+                    game = GomokuGame()
+                    ai_thinking = False
+                    retry_btn_rect = None
+                elif (not game.is_terminal()
+                        and not ai_thinking
+                        and game.current_player == BLACK):
+                    cell = pixel_to_cell(*event.pos)
+                    if cell is not None and game.board[cell[0]][cell[1]] == EMPTY:
+                        game.make_move(cell[0], cell[1])
 
-                cell = pixel_to_cell(*event.pos)
-                if cell is not None and game.board[cell[0]][cell[1]] == EMPTY:
-                    game.make_move(cell[0], cell[1])
-
-                    # Trigger AI response on the next frame so the board redraws first
-                    if not game.is_terminal():
-                        ai_thinking = True
+                        # Trigger AI response on the next frame so the board redraws first
+                        if not game.is_terminal():
+                            ai_thinking = True
 
         # AI moves after the board redraws (so user sees their piece first)
         if ai_thinking and not game.is_terminal():
@@ -128,7 +144,7 @@ def run_game():
             game.make_move(row, col)
             ai_thinking = False
 
-        draw_board(screen, game)
+        retry_btn_rect = draw_board(screen, game)
         pygame.display.flip()
         clock.tick(30)
 
