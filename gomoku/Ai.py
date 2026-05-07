@@ -29,8 +29,9 @@ class GomokuAction:
 class GomokuState:
     """Adapts GomokuGame to the interface expected by the mcts library."""
 
-    def __init__(self, game: GomokuGame):
+    def __init__(self, game: GomokuGame, ai_color=WHITE):
         self.game = game
+        self.ai_color = ai_color
 
     def getCurrentPlayer(self):
         return 1 if self.game.current_player == BLACK else -1
@@ -41,32 +42,34 @@ class GomokuState:
     def takeAction(self, action):
         new_game = self.game.clone()
         new_game.make_move(action.row, action.col)
-        return GomokuState(new_game)
+        return GomokuState(new_game, self.ai_color)
 
     def isTerminal(self):
         return self.game.is_terminal()
 
     def getReward(self):
         """
-        Reward from WHITE's (AI) perspective, normalized to [-1, 1].
+        Reward from the AI player's perspective, normalized to [-1, 1].
         The mcts library does not negate rewards per player, so we anchor
-        to a fixed side (WHITE = AI) throughout the tree.
+        to a fixed side (ai_color) throughout the entire tree.
         """
-        if self.game.winner == WHITE:
+        opponent = BLACK if self.ai_color == WHITE else WHITE
+        if self.game.winner == self.ai_color:
             return 1.0
-        if self.game.winner == BLACK:
+        if self.game.winner == opponent:
             return -1.0
         if self.game.is_terminal():
             return 0.0
 
-        raw = evaluate(self.game.board, WHITE)
+        raw = evaluate(self.game.board, self.ai_color)
         # Clamp to [-1, 1] using the five-in-a-row score as the ceiling
         return max(-1.0, min(1.0, raw / 1_000_000))
 
 
 class GomokuAI:
-    def __init__(self, simulation_budget=500):
+    def __init__(self, simulation_budget=500, color=WHITE):
         self.simulation_budget = simulation_budget
+        self.color = color
         self._searcher = mcts(
             iterationLimit=simulation_budget,
             rolloutPolicy=_heuristic_rollout,
@@ -81,6 +84,6 @@ class GomokuAI:
         if len(legal) == 1:
             return legal[0]
 
-        state = GomokuState(game.clone())
+        state = GomokuState(game.clone(), ai_color=self.color)
         action = self._searcher.search(initialState=state)
         return (action.row, action.col)

@@ -8,7 +8,8 @@
       "Bash(mv Heuristic.py _heuristic_tmp.py)",
       "Bash(mv _heuristic_tmp.py heuristic.py)",
       "Bash(mv Ai.py _ai_tmp.py)",
-      "Bash(.venv/Scripts/python.exe -c ':*)"
+      "Bash(.venv/Scripts/python.exe -c ':*)",
+      "Bash(ls:*)"
     ]
   }
 }
